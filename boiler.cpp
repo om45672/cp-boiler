@@ -35,7 +35,7 @@ const ll LINF = 1e18;
 #endif
 
 // Fast I/O
-void fastIO() {
+void OmPatel() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 }
@@ -92,7 +92,7 @@ void solve() {
 }
 
 int main() {
-    fastio();
+    OmPatel();
     int t = 1;
     cin >> t;
     while (t--) solve();
