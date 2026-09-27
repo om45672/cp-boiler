@@ -1,18 +1,18 @@
-const int NN = 1000'001;
-typedef __int128 HASH;
-HASH p[NN],h[NN];
-constexpr HASH M = 100000000000000003;
-mt19937 gen(__builtin_ia32_rdtsc());
-uniform_int_distribution<int> dist(256, M-1);
-string s;
-void pre(string &s){
-    p[0]=1; p[1] = dist(gen);
-    for(int i=0;i<(int)s.size();++i){
-        p[i+1] = p[i]*p[1]%M;
-        h[i+1] = (h[i]*p[1]+s[i])%M;
-    }
-}
+struct Hash {
+    using ull = unsigned long long;
+    static const int N = 1e6 + 5;
+    ull p[N], h[N];
+    ull base = chrono::steady_clock::now().time_since_epoch().count() | 1;
 
-HASH sub_hash(int l, int r){
-    return (h[r]-p[r-l]*h[l]%M+M)%M;
-}
+    Hash(string &s) {
+        p[0] = 1;
+        for(int i = 0; i < s.size(); i++) {
+            p[i+1] = p[i] * base;
+            h[i+1] = h[i] * base + s[i];
+        }
+    }
+
+    ull get(int l, int r) { // [l,r)
+        return h[r] - h[l] * p[r-l];
+    }
+};
