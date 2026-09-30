@@ -1,70 +1,141 @@
+// Dynamic Li Chao Tree
+// Default: minimum query.
+// Huge implicit domain: [-(2^62), 2^62).
+// Supports:
+//   add_line(m,b)              -> whole domain
+//   add_segment(l,r,m,b)       -> only x in [l,r)
+//
+// For maximum: use LiChao<false>.
+//
+// __int128 is used for m*x+b to avoid overflow during comparisons.
+
+template<bool isMin = true>
 struct LiChao {
+    static constexpr long long XL = -(1LL << 62);
+    static constexpr long long XR =  (1LL << 62);
+    static constexpr long long INF = 4'000'000'000'000'000'000LL;
+
     struct Line {
-        long long m, b; // y = m*x + b
-        Line(long long _m = 0, long long _b = (long long)4e18) : m(_m), b(_b) {}
+        long long m, b;
+
+        Line(long long _m = 0,
+             long long _b = isMin ? INF : -INF)
+            : m(_m), b(_b) {}
+
         long long value(long long x) const {
-            return m * x + b;
+            __int128 y = (__int128)m * x + b;
+            if (y > INF) return INF;
+            if (y < -INF) return -INF;
+            return (long long)y;
         }
     };
 
     struct Node {
         Line line;
-        Node *l, *r;
-        Node(Line v) : line(v), l(nullptr), r(nullptr) {}
+        Node *l = nullptr, *r = nullptr;
+
+        Node(Line x) : line(x) {}
     };
 
-    const long long INF = (long long)4e18;
-    long long L, R; // x-domain
-    Node* root;
+    Node* root = nullptr;
 
-    LiChao(long long _L, long long _R) : L(_L), R(_R) {
-        root = nullptr;
+    static bool better(long long a, long long b) {
+        if constexpr (isMin) return a < b;
+        else return a > b;
     }
 
-    void add_line(Line newLine) {
-        add_line(root, L, R, newLine);
+    static long long combine(long long a, long long b) {
+        if constexpr (isMin) return min(a, b);
+        else return max(a, b);
     }
 
-    void add_line(Node* &node, long long l, long long r, Line newLine) {
+    void add_line(long long m, long long b) {
+        add_line(Line(m, b));
+    }
+
+    void add_line(Line nw) {
+        add_line(root, XL, XR, nw);
+    }
+
+    void add_line(Node*& node, long long l, long long r, Line nw) {
         if (!node) {
-            node = new Node(newLine);
+            node = new Node(nw);
             return;
         }
 
-        long long mid = (l + r) >> 1;
+        long long mid = l + (r - l) / 2;
 
-        bool left = newLine.value(l) < node->line.value(l);
-        bool m = newLine.value(mid) < node->line.value(mid);
+        bool lef = better(nw.value(l), node->line.value(l));
+        bool midBetter = better(nw.value(mid), node->line.value(mid));
 
-        if (m) {
-            swap(node->line, newLine);
+        if (midBetter)
+            swap(node->line, nw);
+
+        if (r - l <= 1)
+            return;
+
+        if (lef != midBetter)
+            add_line(node->l, l, mid, nw);
+        else
+            add_line(node->r, mid, r, nw);
+    }
+
+    void add_segment(long long ql, long long qr,
+                     long long m, long long b) {
+        add_segment(ql, qr, Line(m, b));
+    }
+
+    void add_segment(long long ql, long long qr, Line nw) {
+        ql = max(ql, XL);
+        qr = min(qr, XR);
+
+        if (ql >= qr)
+            return;
+
+        add_segment(root, XL, XR, ql, qr, nw);
+    }
+
+    void add_segment(Node*& node, long long l, long long r,
+                     long long ql, long long qr, Line nw) {
+        if (qr <= l || r <= ql)
+            return;
+
+        if (ql <= l && r <= qr) {
+            add_line(node, l, r, nw);
+            return;
         }
 
-        if (r - l == 1) return;
+        if (!node)
+            node = new Node(Line());
 
-        if (left != m) {
-            add_line(node->l, l, mid, newLine);
-        } else {
-            add_line(node->r, mid, r, newLine);
-        }
+        long long mid = l + (r - l) / 2;
+
+        add_segment(node->l, l, mid, ql, qr, nw);
+        add_segment(node->r, mid, r, ql, qr, nw);
     }
 
     long long query(long long x) const {
-        return query(root, L, R, x);
+        if (x < XL || x >= XR)
+            return isMin ? INF : -INF;
+
+        return query(root, XL, XR, x);
     }
 
-    long long query(Node* node, long long l, long long r, long long x) const {
-        if (!node) return INF;
+    long long query(Node* node, long long l, long long r,
+                    long long x) const {
+        if (!node)
+            return isMin ? INF : -INF;
 
-        long long res = node->line.value(x);
-        if (r - l == 1) return res;
+        long long ans = node->line.value(x);
 
-        long long mid = (l + r) >> 1;
-        if (x < mid && node->l) {
-            res = min(res, query(node->l, l, mid, x));
-        } else if (x >= mid && node->r) {
-            res = min(res, query(node->r, mid, r, x));
-        }
-        return res;
+        if (r - l <= 1)
+            return ans;
+
+        long long mid = l + (r - l) / 2;
+
+        if (x < mid)
+            return combine(ans, query(node->l, l, mid, x));
+
+        return combine(ans, query(node->r, mid, r, x));
     }
 };
